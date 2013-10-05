@@ -2,7 +2,7 @@ title:            Craig G Wilson
 description:      Personal blog about software and life.
 disqus_shortname: 
 #Comment out url when working locally to resolve base urls correctly
-#url:              http://craiggwilson.github.io
+url:              http://craiggwilson.github.io
 
 # Owner/author information
 owner:
