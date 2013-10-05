@@ -8,7 +8,7 @@ url:              http://craiggwilson.github.io
 owner:
   name:           Craig Wilson
   avatar:         avatar.jpg
-  bio:            "This blog represents my thoughts.  Mostly, they will be about software development, because that is what I do.  I work for 10gen as a mongodb driver engineer and evangelist developing software and tools for other developers."
+  bio:            "This blog represents my thoughts.  Mostly, they will be about software development, because that is what I do.  I work for MongoDB as a driver engineer and evangelist developing software and tools for other developers."
   # Social networking links used in footer. Update and remove as you like.
   twitter:        craiggwilson
   github:         craiggwilson
