@@ -4,7 +4,7 @@ title: Disconnecting from MongoDB
 description: Calling Disconnect in the MongoDB .NET Driver is probably the wrong decision.
 tags: [mongodb, .net, best-practice, api]
 image:
-  feature: abstract-10.jpg
+  feature: abstract-9.jpg
   credit: dargadgetz
   creditlink: http://www.dargadgetz.com/ios-7-abstract-wallpaper-pack-for-iphone-5-and-ipod-touch-retina/
 comments: true
