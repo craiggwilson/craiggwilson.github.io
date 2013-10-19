@@ -1,0 +1,38 @@
+---
+layout: post
+title: Tales from Support: Load Balancing Mongos
+description: A load balancer in front of a bunch of mongos' is going to cause some problems.
+tags: [mongodb, .net, talesfromsupport, infrastructure]
+image:
+  feature: abstract-8.jpg
+  credit: dargadgetz
+  creditlink: http://www.dargadgetz.com/ios-7-abstract-wallpaper-pack-for-iphone-5-and-ipod-touch-retina/
+comments: true
+share: true
+---
+
+> Putting a load balancer in front of a bunch of [mongos](http://docs.mongodb.org/master/reference/program/mongos/)' is going to cause some problems.
+
+[We](http://mongodb.org) recently had a customer who continually received "Cursor not found" errors.  They made an off-handed statement related to a load balancer I overlooked for period of time, attempting to blame the .NET driver for the problem.  Not able to come up with a reason, we re-read over the dialogue and came up with this theory.  Before I go any further, we should cover a little background.
+
+### Background
+
+First, a [mongos](http://docs.mongodb.org/master/reference/program/mongos/) acts like a router in front of a partitioned system.  A driver, the name for mongodb's client, will connect to a mongos and let it handle which partition to route a CRUD operation.  This works extremely well.  MongoDB has a number of [different drivers](http://docs.mongodb.org/ecosystem/drivers/) for different languages and frameworks. 
+
+Second, for queries whose results are larger than a single batch, a cursor is created.  It is basically a correlating identifier for a number of batches in a driver.  A driver issues a query ([OP_QUERY](http://docs.mongodb.org/meta-driver/latest/legacy/mongodb-wire-protocol/#op-query)) and receives the first batch of results.  If the response from the OP_QUERY included a cursor id, it means there are more results and a driver can issue an [OP_GET_MORE](http://docs.mongodb.org/meta-driver/latest/legacy/mongodb-wire-protocol/#op-get-more) to retrieve the next batch.  The only requirement here is that the OP_GET_MORE be issued to the same server that received it initially. 
+
+### Reason
+
+So, what is the problem?  Well, given that a load balancer has been placed in front of a bunch of different servers, and that we require OP_GET_MOREs to be sent to the same server as the initial OP_QUERY, the load balancer would be required to understand the MongoDB wire protocol to guarantee this behavior.  The problem is, of course, that load balancers don't understand the MongoDB wire protocol.  So, simply put, load balancing to mongos simply won't work, right?
+
+Well, it's a little trickier than that because each of our many drivers was coded a little differently.  They have different authors, different needs, and most started outside of [MongoDB, Inc](http://mongodb.com) as open-source projects.  Many of the drivers copied our Java driver's modus operandi and used thread affinity to attempt to guarantee that all operations occuring on the same thread utilized the same connection (Obviously, for asynchronouse drivers, this doesn't work at all anyway because the callbacks could be raised on a different thread).  So, under light loads, most drivers will send an OP_GET_MORE down the same connection as the initial OP_QUERY.  And since most load balancers will have some form of stickiness between the client and the server for the same connection, then the above problem doesn't exist.  
+
+Even this is only partly true.  The Java driver, for instance, under heavy load will pull the connection off of a thread if it needs one for a different request.  When that thread that just got it's connection jacked needs to issue the OP_GET_MORE, it will simply grab another one from the pool.  This one will likely be stolen from a different thread.  The end result of this is that, under heavy loads, even the thread affinity "hack" can't guarantee that OP_GET_MOREs get sent to the same server.  It's purely accidental and coincidental that it currently works for any driver.
+
+The .NET driver doesn't do this thread affinity thing unless requested.  Instead, everytime we need a connection to do an OP_GET_MORE, we just grab an available one out of the connection pool.  This gives a number of benefits, the greatest being that we end up needing less connections open at a time because we get greater utilization out of each connection.  The downside, of course, is that it doesn't work with load balancers.  We do, rather, [provide a way](http://docs.mongodb.org/ecosystem/tutorial/use-csharp-driver/#requeststart-requestdone-methods) for users to perform a "batch" of operations on the same connection by opting-in to the thread affinity "hack".  This alone solves the problem for .NET users who are forced to work in this type of environment.
+
+### Summary
+
+Long story short, putting a load balancer in front of a bunch of mongos' is not a great solution. In addition to the indicated "cursor not found" problems, it is entirely possible that the cursor id generated by mongos A coincides with a cursor id generator by mongos B.  If a subsequent OP_GET_MORE get's sent the wrong server, then results might be a bunch of cats instead of the expected dogs.
+
+Rather, we recommend that a mongos exists on each application server.  This has a number of benefits, the foremost being that there is no network involved between the application and the mongos.  We'll be conferring about this problem in the next few weeks and figure out if and how we should support this scenario.  If you've any thoughts, please let me know.
