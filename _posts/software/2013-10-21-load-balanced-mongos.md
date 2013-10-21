@@ -1,7 +1,7 @@
 ---
 layout: post
-title: Tales from Support: Load Balancing Mongos
-description: A load balancer in front of a bunch of mongos' is going to cause some problems.
+title: Load Balancing Mongos
+description: "A load balancer in front of a bunch of mongos' is going to cause some problems."
 tags: [mongodb, .net, talesfromsupport, infrastructure]
 image:
   feature: abstract-8.jpg
@@ -25,14 +25,26 @@ Second, for queries whose results are larger than a single batch, a cursor is cr
 
 So, what is the problem?  Well, given that a load balancer has been placed in front of a bunch of different servers, and that we require OP_GET_MOREs to be sent to the same server as the initial OP_QUERY, the load balancer would be required to understand the MongoDB wire protocol to guarantee this behavior.  The problem is, of course, that load balancers don't understand the MongoDB wire protocol.  So, simply put, load balancing to mongos simply won't work, right?
 
-Well, it's a little trickier than that because each of our many drivers was coded a little differently.  They have different authors, different needs, and most started outside of [MongoDB, Inc](http://mongodb.com) as open-source projects.  Many of the drivers copied our Java driver's modus operandi and used thread affinity to attempt to guarantee that all operations occuring on the same thread utilized the same connection (Obviously, for asynchronouse drivers, this doesn't work at all anyway because the callbacks could be raised on a different thread).  So, under light loads, most drivers will send an OP_GET_MORE down the same connection as the initial OP_QUERY.  And since most load balancers will have some form of stickiness between the client and the server for the same connection, then the above problem doesn't exist.  
+Well, it's a little trickier than that because each of our many drivers was coded a little differently.  They have different authors, different needs, and most started outside of [MongoDB, Inc](http://mongodb.com) as open-source projects.  Let's take a few examples with the assumption that a connection to the load balancer will always be routed to the same mongos.  I think this is a safe assumption.
 
-Even this is only partly true.  The Java driver, for instance, under heavy load will pull the connection off of a thread if it needs one for a different request.  When that thread that just got it's connection jacked needs to issue the OP_GET_MORE, it will simply grab another one from the pool.  This one will likely be stolen from a different thread.  The end result of this is that, under heavy loads, even the thread affinity "hack" can't guarantee that OP_GET_MOREs get sent to the same server.  It's purely accidental and coincidental that it currently works for any driver.
+#### PHP
 
-The .NET driver doesn't do this thread affinity thing unless requested.  Instead, everytime we need a connection to do an OP_GET_MORE, we just grab an available one out of the connection pool.  This gives a number of benefits, the greatest being that we end up needing less connections open at a time because we get greater utilization out of each connection.  The downside, of course, is that it doesn't work with load balancers.  We do, rather, [provide a way](http://docs.mongodb.org/ecosystem/tutorial/use-csharp-driver/#requeststart-requestdone-methods) for users to perform a "batch" of operations on the same connection by opting-in to the thread affinity "hack".  This alone solves the problem for .NET users who are forced to work in this type of environment.
+The PHP driver will always send OP_GET_MOREs down the same connection it used for the initial OP_QUERY.  If the connection dies, then even though the cursor could continue to be used by a different connection, it considers the query dead.
+
+#### Node.js
+
+The Node driver uses (by default) 5 connections period.  It also pins the connection it uses for the initial OP_QUERY to the cursor such that each successive OP_GET_MORE always uses the same connection.  This would mean all OP_GET_MOREs always go to the same server.  However, there's always a gotcha.  If the connection used for the initial OP_QUERY happens to die, then the node driver will replace it with a different, new connection.  There is no guarantee that this connection will be for the same server.  While this is a somewhat exceptional circumstance, it holds that the node driver can't be guaranteed to work with a load balancer.
+
+#### Java
+
+Many of the drivers copied our Java driver's modus operandi which uses thread affinity.  This means that under normal operation conditions, each thread is bound to a connection.  As such, each OP_QUERY and OP_GET_MORE will most likely use the same connection and therefore the same mongos behind the load balancer.  However, under heavy loads where the number of threads is greater than the maximum size of the connection pool, a thread without a connection may steal one from a different thread.  This, of course, has a nice ripple effect where threads are all stealing from each other and there is no guarantee anywhere.
+
+#### .NET
+
+The .NET driver doesn't do this thread affinity thing unless requested.  Instead, everytime a connection is needed, it pulls an available one out of the connection pool.  This gives a number of benefits, the greatest being that less connections are needed because each is utilized more frequently.  The downside, of course, is that it doesn't work with load balancers.  We do [provide a way](http://docs.mongodb.org/ecosystem/tutorial/use-csharp-driver/#requeststart-requestdone-methods) for users to perform a "batch" of operations on the same connection by opting-in to the thread affinity "hack".  This alone solves the problem for .NET users who are forced to work in this type of environment because we don't steal connections from other threads.  This does limit overall throughput because connections are now exclusively checked-out until they are released.  So, if your max connection pool size is 100, then only 100 requests can be handled at a given time.
 
 ### Summary
 
-Long story short, putting a load balancer in front of a bunch of mongos' is not a great solution. In addition to the indicated "cursor not found" problems, it is entirely possible that the cursor id generated by mongos A coincides with a cursor id generator by mongos B.  If a subsequent OP_GET_MORE get's sent the wrong server, then results might be a bunch of cats instead of the expected dogs.
+Long story short, putting a load balancer in front of a bunch of mongos' is not a great solution. In addition to the indicated "cursor not found" problems, it is entirely possible that the cursor id generated by mongos A coincides with a cursor id for mongos B.  If a subsequent OP_GET_MORE get's sent the wrong server, then results might be a bunch of cats instead of the expected dogs.
 
-Rather, we recommend that a mongos exists on each application server.  This has a number of benefits, the foremost being that there is no network involved between the application and the mongos.  We'll be conferring about this problem in the next few weeks and figure out if and how we should support this scenario.  If you've any thoughts, please let me know.
+Rather, we recommend that a mongos exists on each application server.  This has a number of benefits, the foremost being that there is no network involved between the application and the mongos.  We'll be conferring about this problem in the next few weeks/months and figure out if and how we should support this scenario.  If you've any thoughts, please let me know.
