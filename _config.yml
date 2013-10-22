@@ -3,6 +3,7 @@ description:      Personal blog about software and life.
 disqus_shortname: craiggwilson
 #Comment out url when working locally to resolve base urls correctly
 url:              http://craiggwilson.com
+google_analytics: UA-45057412-1
 
 # Owner/author information
 owner:
