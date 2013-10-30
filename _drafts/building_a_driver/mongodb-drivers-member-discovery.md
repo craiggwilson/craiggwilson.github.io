@@ -13,11 +13,11 @@ share: true
 
 > How mongodb drivers auto-discover replica set members.
 
-One of the things [MongoDB](http://mongodb.org) does great is high availability.  It uses a concept called [replica sets](http://docs.mongodb.org/manual/replication/) such that there are N nodes that all have the same data eventually, depending on network latency and configuration.  A replica set itself is a single master system such that only 1 of N nodes will accept writes.  The master in this system is called a "primary".  As these changes happen in the primary, they get replicated to what we call secondaries. In addition to primaries and secondaries, there are also non-data bearing nodes called "arbiters" which are used to break ties in voting.
+One of the things [MongoDB](http://mongodb.org) does great is high availability.  It uses a concept called [replica sets](http://docs.mongodb.org/manual/replication/) such that there are N nodes that all have the same data eventually, depending on network latency and configuration.  A replica set itself is a single master system such that only 1 of N nodes will accept writes.  The master in this system is called a "primary".  As these changes happen in the primary, they get replicated to what we call secondaries. In addition to primaries and secondaries, there are also non-data bearing nodes called "arbiters" which are used to break ties in voting.  (It follows that N should always be odd when using replica sets).
 
-As far as a [driver](http://docs.mongodb.org/ecosystem/drivers/) is concerned, it needs to be aware of all the nodes in a system to which it is allowed to talk. MongoDB has a standard [connection string](http://docs.mongodb.org/manual/reference/connection-string/) which all drivers support that allows for the specification of a number of hosts.  However, it isn't required that all host be on the connection string in order for them to get utilized.  In addition, it is entirely possible for members to be added and removed from a replica set at runtime.  The driver needs to be able to handle these situations.  To do this, there are two commands that provide the information we need.  
+As far as a [driver](http://docs.mongodb.org/ecosystem/drivers/) is concerned, it needs to be aware of all the nodes in a system to which it is allowed to talk. MongoDB has a standard [connection string](http://docs.mongodb.org/manual/reference/connection-string/) which all drivers support that allows for the specification of a number of hosts.  However, it isn't required that all hosts be on the connection string in order for them to get utilized.  The driver should be able to pick up the members that were not part of the connection string.  In addition, it is entirely possible for members to be added and removed from a replica set at runtime.  The driver needs to be able to handle these situations.  To do this, there are two commands that provide the information we need.  
 
-Our first option, [replSetGetStatus](http://docs.mongodb.org/manual/reference/command/replSetGetStatus/), is a command that many of you are familiar with.  When using the mongo shell, you can use the helper rs.status() which invokes this command for you.  It provides back all the members, their state, and lots of other information.  Below is an example from a replica set running on my local box right after I started up a the replica set (the secondaries haven't finished starting up).
+Our first option, [replSetGetStatus](http://docs.mongodb.org/manual/reference/command/replSetGetStatus/), is a command that many of you may be familiar with.  When using the mongo shell, you can use the helper rs.status() which invokes this command for you.  It provides back all the members, their state, and lots of other information.  Below is an example from a replica set running on my local box right after I started up a the replica set (the secondaries haven't finished starting up).
 
 {% highlight js %}
 {
@@ -79,8 +79,8 @@ Our second option is another command called [isMaster](http://docs.mongodb.org/m
         "secondary" : false,
         "hosts" : [
                 "localhost:40000",
-                "localhost:40002",
-                "localhost:40001"
+                "localhost:40001",
+                "localhost:40002"
         ],
         "primary" : "localhost:40000",
         "me" : "localhost:40000",
@@ -91,7 +91,7 @@ Our second option is another command called [isMaster](http://docs.mongodb.org/m
 }
 {% endhighlight %}
 
-So, that's great.  We have all the information we need.  Each driver periodically calls isMaster on each of the members it knows about and uses that information to determine whether the server is able to receive CRUD operations.  As new members get added, or old members get removed, the 3 fields containing members(hosts, passives, arbiters) change and the driver can then add or remove the member from it's internal members list.  Piece of cake, right?
+So, that's great.  We have all the information we need.  Each driver periodically calls isMaster on each of the members it knows about and uses that information to determine any members it doesn't know about or members that it knows about that it shouldn't.  As new members get added, or old members get removed, the 3 fields containing members(hosts, passives, arbiters) change and the driver can then add or remove the member from it's internal members list.  Piece of cake, right?
 
 Actually, yes; it's really pretty simple.  But there are most certainly some issues that come up.  For instance:
 
@@ -103,6 +103,6 @@ Actually, yes; it's really pretty simple.  But there are most certainly some iss
 	- This might not be obvious, as one could be localhost:27017 and the other 127.0.0.1:27017.
 - What if the user places a non-replica set member (i.e. a standalone or a mongos) on the connection string along with a replica set member?
 
-None of these are difficult to solve in isolation.  We just need a documented way to handle each case.  Currently, as each driver has been developed semi-independently by different authors, both inside and outside MongoDB, some of these edge cases are handled a bit differently.  In addition, some of these edge cases can be non-trivial to test and require manually setting up and messing with servers to watch how a driver reacts.  All in all though, this works extremely well and most of the differences in how drivers handle different situations stems from whether a runtime supports multiple-threads or not.  For instance, .NET can be calling isMaster on all the members it knows about simultaneously and be much more responsive to user requests where a PHP or Node.js application, which only has a single thread, is in a holding pattern until it hears back from each server.
+None of these are difficult to solve in isolation.  We just need a documented way to handle each case.  Currently, as each driver has been developed semi-independently by different authors, both inside and outside MongoDB, some of these edge cases are handled a bit differently.  In addition, some of these edge cases can be non-trivial to test and require manually setting up and messing with servers to watch how a driver reacts.  All in all though, this works extremely well and many of the differences in how drivers handle different situations stems from whether a runtime supports multiple-threads or not.  For instance, .NET can be calling isMaster on all the members it knows about simultaneously and be much more responsive to user requests where a PHP or Node.js application, which only has a single thread, is in a holding pattern until it hears back from each server.
 
 As always, if you have any questions, feel free to post a comment or ask on [mongodb-user](https://groups.google.com/forum/?hl=en#!forum/mongodb-user).
