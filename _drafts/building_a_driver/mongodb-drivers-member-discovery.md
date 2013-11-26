@@ -1,7 +1,7 @@
 
 ---
 layout: post
-title: MongoDB Driver Member Discovery
+title: MongoDB Drivers - Member Discovery
 description: How mongodb drivers auto-discover replica set members.
 tags: [mongodb, .net, infrastructure]
 image:
