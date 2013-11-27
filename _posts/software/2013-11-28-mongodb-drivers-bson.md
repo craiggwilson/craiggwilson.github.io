@@ -91,6 +91,7 @@ var people = from person in personCollection
 
 However, some users will care and will want to customize this experience.  Internally, a number of conventions are used and users can customize everything from what is serialized to how it is serialized either via attributes or in-code configuration.  I won't go into how this works because our [documentation](http://docs.mongodb.org/ecosystem/tutorial/serialize-documents-with-the-csharp-driver/) is very complete on this topic.
 
+
 ### Conclusion
 
 Bson is basically the first step that needs to happen when building a driver.  Without it, a driver can't talk to MongoDB.  At this point in time, there might already be a bson library built for your language or framework, although a simple one isn't overly difficult to get up and running.  For instanc,e if you are writing a driver that can interoperate with C, MongoDB makes the tremendous [libbson](https://github.com/mongodb/libbson) which has had a number of micro-optimizations to make it extremely fast and reliable.
