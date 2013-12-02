@@ -51,4 +51,4 @@ The message length, just like noted above about bson, must be known to write a m
 
 The only other important thing to note about the header is the request id.  The .NET driver simply does an atomic increment of a static variable and uses that.  It also remembers the value used to send the query such that it can correlate a possible response with the request.  That response will contain the request id in the responseTo field.
 
-[Part 2]({% post_url software/2013-11-30-mongodb-drivers-wire-protocol-1 %}) will continue looking at the query portion of the MongoDB wire protocol.
+[Wire Protocol Part 2]({% post_url software/2013-11-30-mongodb-drivers-wire-protocol-1 %}) will continue looking at the query portion of the MongoDB wire protocol.

@@ -25,4 +25,5 @@ Second, a driver is responsible for making an API that is idiomatic to its targe
 
 I'll update the below list as new articles are published.  Please ask questions in the comments and I'll do my best to answer them.  The .NET driver team (Robert Stam, [Sridhar Nanjundeswaran](https://twitter.com/snanjund), and I) are currently refactoring large portions of our code base for our next major release, so many of the questions and decisions that need to be made are relatively fresh in my mind.
 
-[Introduction]({% post_url software/2013-11-26-mongodb-drivers-introduction %})
+* [Introduction]({% post_url software/2013-11-26-mongodb-drivers-introduction %})
+* [Bson]({% post_url software/2013-12-02-mongodb-drivers-bson %})
