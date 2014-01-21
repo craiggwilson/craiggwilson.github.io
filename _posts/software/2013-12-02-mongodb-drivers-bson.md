@@ -93,4 +93,4 @@ However, some users will care and will want to customize this experience.  Inter
 
 Bson is the first step that needs to happen when building a driver.  Without it, a driver can't talk to MongoDB.  At this point in time, there might already be a bson library built for your language or framework, although a simple one isn't overly difficult to get up and running.  For instance, if you are writing a driver that can utilized C libraries, MongoDB makes the tremendous [libbson](https://github.com/mongodb/libbson) which has had a number of micro-optimizations to make it extremely fast and reliable.
 
-Next time, we'll talk about the TCP and the MongoDB wire protocol.
+[Next time]({% post_url software/2013-12-10-mongodb-drivers-wire-protocol-1 %}), we'll talk about the TCP and the MongoDB wire protocol.

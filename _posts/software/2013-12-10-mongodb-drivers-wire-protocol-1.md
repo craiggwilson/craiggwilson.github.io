@@ -51,6 +51,6 @@ The message length, just like noted above about bson, must be known to write a m
 
 The only other important thing to note about the header is the request id.  The .NET driver simply does an atomic increment of a static variable and uses that.  It also remembers the value used to send the query such that it can correlate a possible response with the request.  That response will contain the request id in the responseTo field.
 
-Wire Protocol Part 2 will continue looking at the query portion of the MongoDB wire protocol.  Stay tuned.
+[Wire Protocol Part 2]({% post_url software/2014-01-21-mongodb-drivers-wire-protocol-2 %}) will continue looking at the query portion of the MongoDB wire protocol.  Stay tuned.
 
 [^1]: There is actually some fudge room with the document size.  When we come to the write portion of the query protocol, I'll discuss why this is important given the new Write Commands server 2.6 will be supporting.
